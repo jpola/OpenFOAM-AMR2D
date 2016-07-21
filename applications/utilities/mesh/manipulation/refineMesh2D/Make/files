@@ -1,0 +1,3 @@
+refineMesh2D.C
+
+EXE = $(FOAM_APPBIN)/refineMesh2D

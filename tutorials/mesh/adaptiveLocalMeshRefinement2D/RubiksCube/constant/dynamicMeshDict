@@ -1,0 +1,58 @@
+FoamFile
+{
+	version	2.0;
+	class	dictionary;
+	format	ascii;
+	location	"constant";
+	object	dynamicMeshDict;
+}
+dynamicFvMesh dynamicRefineFvMesh2D;
+
+// Refinement
+dynamicRefineFvMesh2DCoeffs
+{
+    // Refine every refineInterval timesteps
+    refineInterval 1;
+
+    // Maximum refinement level (starts from 0)
+    maxRefinement 1;
+	lowerRefineLevel 0;
+	upperRefineLevel 1;
+
+    // Maximum cell limit (approximate)
+    maxCells 1000000;
+
+    // volScalarField to base refinement on
+    field alpha.oil;
+
+    // Which cells to un/refine: based on point values (simple averaging).
+    // - refine pointCells of point value inbetween minLevel..maxLevel
+    // - unrefine pointCells that are within nBufferLayers of points marked
+    //   for refinement.
+    minLevel 0.001;
+    maxLevel 0.999;
+    nBufferLayers 1;
+	unrefineLevel 0;
+
+    // Newly introduced patch points optionally get projected onto a surface
+    //projectSurfaces ("fixedWalls4.stl");
+    //projectPatches (fixedWalls);
+    // Maximum project distance
+    //projectDistance 1;
+
+    // Fluxes to adapt. For newly created faces or split faces the flux
+    // gets estimated from an interpolated volVectorField ('velocity')
+    // First is name of the flux to adapt, second is velocity that will
+    // be interpolated and inner-producted with the face area vector.
+    correctFluxes (
+		(phi U)
+		(rhoPhi U)
+		(nHatf U)
+        (rhoPhi U)
+        (alphaPhi U)
+        (ghf U)
+	);
+
+	// Write the refinement level as a volScalarField
+    dumpLevel       true;
+}
