@@ -81,3 +81,13 @@ doc/Doxygen/DTAGS
 
 # Ignore the test directory
 /tutorialsTest
+
+#Ignore QtCreator import project files files
+*.user
+*.creator
+*.config
+*.files
+*.includes
+
+#Ignore *.foam files for OpenFOAM
+*.foam
