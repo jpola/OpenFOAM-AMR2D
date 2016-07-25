@@ -91,3 +91,11 @@ doc/Doxygen/DTAGS
 
 #Ignore *.foam files for OpenFOAM
 *.foam
+
+#Ignore *.sim files from SimFlow
+*.sim
+
+#ignore some dump files and pictures
+*.obj
+*.png
+

@@ -33,6 +33,8 @@ Description
 #include "argList.H"
 #include "Time.H"
 #include "dynamicFvMesh.H"
+#include "immiscibleIncompressibleTwoPhaseMixture.H"
+#include "fvCFD.H"
 
 using namespace Foam;
 
@@ -76,10 +78,68 @@ int main(int argc, char* argv[])
 
     dynamicFvMesh& mesh = meshPtr();
 
+    Info<< "Reading field U\n" << endl;
+    volVectorField U
+    (
+        IOobject
+        (
+            "U",
+            runTime.timeName(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::AUTO_WRITE
+        ),
+        mesh
+    );
 
-    //Now select candidate cells and call mesh.update() to do 2D refinement :P
+    //Create phi
+    Info<< "Reading/calculating face flux field phi\n" << endl;
+    surfaceScalarField phi
+    (
+        IOobject
+        (
+            "phi",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::AUTO_WRITE
+        ),
+        fvc::flux(U)
+    );
 
-	
+    phi = linearInterpolate(U) & mesh.Sf();
+
+    //Create alpha field
+    Info<< "Reading transportProperties\n" << endl;
+    immiscibleIncompressibleTwoPhaseMixture mixture(U, phi);
+
+    volScalarField& alpha1(mixture.alpha1());
+    volScalarField& alpha2(mixture.alpha2());
+
+    const dimensionedScalar& rho1 = mixture.rho1();
+    const dimensionedScalar& rho2 = mixture.rho2();
+
+
+    // Need to store rho for ddt(rho, U)
+    volScalarField rho
+    (
+        IOobject
+        (
+            "rho",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT
+        ),
+        alpha1*rho1 + alpha2*rho2
+    );
+    rho.oldTime();
+
+    runTime++;
+
+    mesh.update();
+
+    runTime.write();
+
 	Info << "Refine Mesh 2D End\n" << endl;
 	return 0;
 

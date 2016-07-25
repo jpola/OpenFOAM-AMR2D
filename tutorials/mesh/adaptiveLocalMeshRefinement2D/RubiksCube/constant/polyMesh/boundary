@@ -1,0 +1,48 @@
+FoamFile
+{
+	location		"constant/polyMesh";
+	class		dictionary;
+	object		boundary;
+	format		ascii;
+	version		2.0;
+}
+
+6
+(
+bottom
+{
+	type                  wall;
+	startFace             40;
+	nFaces                5;
+}
+back
+{
+	type                  empty;
+	startFace             45;
+	nFaces                25;
+}
+front
+{
+	type                  empty;
+	startFace             70;
+	nFaces                25;
+}
+left
+{
+	type                  wall;
+	startFace             95;
+	nFaces                5;
+}
+right
+{
+	type                  wall;
+	startFace             100;
+	nFaces                5;
+}
+top
+{
+	type                  wall;
+	startFace             105;
+	nFaces                5;
+}
+)

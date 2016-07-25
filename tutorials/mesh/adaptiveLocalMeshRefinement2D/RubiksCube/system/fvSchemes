@@ -16,7 +16,12 @@ gradSchemes
 }
 divSchemes
 {
-	default	bounded Gauss upwind;
+	default	Gauss upwind;
+	div(rhoPhi,U)	Gauss upwind;
+	div(phirb,alpha)	Gauss interfaceCompression;
+	div(phi,alpha)	Gauss vanLeer;
+	div(R)	Gauss linear;
+	div((muEff*dev(T(grad(U)))))	Gauss linear;
 }
 laplacianSchemes
 {
@@ -33,4 +38,7 @@ snGradSchemes
 fluxRequired
 {
 	default	no;
+	p_rgh	;
+	pcorr	;
+	"alpha.*"	;
 }

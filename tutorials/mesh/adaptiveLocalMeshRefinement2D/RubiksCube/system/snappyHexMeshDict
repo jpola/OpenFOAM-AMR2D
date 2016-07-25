@@ -1,0 +1,98 @@
+FoamFile
+{
+	version	2.0;
+	class	dictionary;
+	format	ascii;
+	location	"system";
+	object	snappyHexMeshDict;
+}
+castellatedMesh	true;
+snap	true;
+addLayers	true;
+geometry
+{
+	box_1
+	{
+		type	searchableBox;
+		max	(0.6 0.6 0.1);
+		size	(0.2 0.2 0.1);
+		min	(0.4 0.4 0.0);
+	}
+}
+castellatedMeshControls
+{
+	locationInMesh	(0.5 0.5 0.05);
+	refinementSurfaces
+	{
+	}
+	refinementRegions
+	{
+	}
+	features	
+	(
+	);
+	minRefinementCells	0;
+	maxGlobalCells	10000000;
+	resolveFeatureAngle	30.0;
+	nCellsBetweenLevels	4;
+	maxLocalCells	500000;
+	allowFreeStandingZoneFaces	true;
+}
+snapControls
+{
+	nFeatureSnapIter	10;
+	multiRegionFeatureSnap	true;
+	nSolveIter	500;
+	tolerance	1.0;
+	nRelaxIter	5;
+	nSmoothPatch	3;
+	implicitFeatureSnap	true;
+	explicitFeatureSnap	true;
+}
+addLayersControls
+{
+	layers
+	{
+	}
+	nSmoothSurfaceNormals	5;
+	slipFeatureAngle	30.0;
+	nBufferCellsNoExtrude	0;
+	nRelaxIter	5;
+	relativeSizes	true;
+	minMedianAxisAngle	90.0;
+	maxFaceThicknessRatio	0.5;
+	nSmoothNormals	3;
+	maxThicknessToMedialRatio	0.5;
+	nLayerIter	50;
+	minThickness	0.05;
+	nSmoothThickness	10;
+	nGrow	0;
+	nRelaxedIter	20;
+	concaveAngle	90.0;
+	featureAngle	180.0;
+	firstLayerThickness	0.2;
+	expansionRatio	1.2;
+}
+meshQualityControls
+{
+	minTetQuality	1.0E-20;
+	minVol	1.0E-14;
+	maxInternalSkewness	4.0;
+	maxBoundarySkewness	20.0;
+	maxConcave	80.0;
+	minFaceWeight	0.05;
+	minVolRatio	0.01;
+	minTwist	0.05;
+	minArea	-1.0;
+	maxNonOrtho	65.0;
+	minTriangleTwist	-1.0;
+	minDeterminant	0.01;
+	errorReduction	0.75;
+	nSmoothScale	4;
+	relaxed
+	{
+		maxNonOrtho	75.0;
+	}
+}
+mergeTolerance	1.0E-6;
+debug	0;

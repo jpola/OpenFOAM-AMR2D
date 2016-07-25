@@ -1238,7 +1238,8 @@ bool Foam::dynamicRefineFvMesh2D::update()
     // Note: cannot refine at time 0 since no V0 present since mesh not
     //       moved yet.
 
-    if (time().timeIndex() > 0 && time().timeIndex() % refineInterval == 0)
+    //JPA: if (time().timeIndex() > 0 && time().timeIndex() % refineInterval == 0)
+    if (time().timeIndex() >= 0 && time().timeIndex() % refineInterval == 0)
     {
         label maxCells = readLabel(refineDict.lookup("maxCells"));
 
@@ -1278,6 +1279,17 @@ bool Foam::dynamicRefineFvMesh2D::update()
         const label nBufferLayers =
             readLabel(refineDict.lookup("nBufferLayers"));
 
+        // The nBufferLayersR value works the same as nBufferLayers, which
+        // find the number of buffer layers that should be extended for the unrefinement, but for the
+        // refinement instead of unrefinement. This value was added to extend the number of buffer
+        // layers around the interface during the refinement step, since it was found that additional
+        // resolution is often needed in this step, particularly when tracking small drops in a flow
+        // field. If the resolution around the interface is extended, then the mass will be conserved for
+        // a small droplet in a large geometry, whereas, without extending the resolution, the droplet
+        // loses mass and may even vanish
+        const label nBufferLayersR =
+            readLabel(refineDict.lookup("nBufferLayersR"));
+
         // Cells marked for refinement or otherwise protected from unrefinement.
         PackedBoolList refineCell(nCells());
 
@@ -1289,6 +1301,16 @@ bool Foam::dynamicRefineFvMesh2D::update()
             vFld,
             refineCell
         );
+
+        //JPA: select additional mesh cells for refinement according to nBufferLayersR
+        for (label i = 0; i < nBufferLayersR; i++)
+        {
+            if (debug)
+            {
+                Info << "Adding cells to refine according to nBufferLayers: " << i << endl;
+            }
+            extendMarkedCells(refineCell);
+        }
 
         if (globalData().nTotalCells() < maxCells)
         {

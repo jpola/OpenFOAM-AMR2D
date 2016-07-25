@@ -44,6 +44,8 @@ License
 #include "refinementDistanceData.H"
 #include "degenerateMatcher.H"
 
+#include "emptyPolyPatch.H"
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
@@ -3253,6 +3255,16 @@ Foam::labelListList Foam::hexRef4::setRefinement
         // Cannot call checkRefinementlevels since hanging points might
         // get triggered by the mesher after subsetting.
         //checkRefinementLevels(-1, labelList(0));
+
+        Pout << "Cell labels to be refined" << endl;
+        Pout << " ";
+        forAll(cellLabels, i)
+        {
+            Pout << i << ", ";
+        }
+        Pout << " "<<endl;
+
+
     }
 
     // Clear any saved point/cell data.
@@ -3280,29 +3292,38 @@ Foam::labelListList Foam::hexRef4::setRefinement
             << endl;
     }
 
+    //JPA: cellLabels: indexes of cells pointed to be refined
 
     // Mid point per refined cell.
     // -1 : not refined
     // >=0: label of mid point.
     labelList cellMidPoint(mesh_.nCells(), -1);
 
+    //JPA: orginally for each cell to be refined add point in the middle of the cell!
+    // We don't want that, instead add the points in the opposite empty faces
+    // This code is changed just to mark the cellMidPoint.
     forAll(cellLabels, i)
     {
         label celli = cellLabels[i];
+        cellMidPoint[celli] = 1; //JPA
 
-        label anchorPointi = mesh_.faces()[mesh_.cells()[celli][0]][0];
+        //JPA:: Commented from orginal code
+//        label anchorPointi = mesh_.faces()[mesh_.cells()[celli][0]][0];
 
-        cellMidPoint[celli] = meshMod.setAction
-        (
-            polyAddPoint
-            (
-                mesh_.cellCentres()[celli],     // point
-                anchorPointi,                   // master point
-                -1,                             // zone for point
-                true                            // supports a cell
-            )
-        );
+//        //JPA: for each cell to be refined add point in the middle of the cell!
+//        // We don't want that, instead add the points in the opposite empty faces
+//        cellMidPoint[celli] = meshMod.setAction
+//        (
+//            polyAddPoint
+//            (
+//                mesh_.cellCentres()[celli],     // point
+//                anchorPointi,                   // master point
+//                -1,                             // zone for point
+//                true                            // supports a cell
+//            )
+//        );
 
+        //JPA: Dunno if that is relevant here?
         newPointLevel(cellMidPoint[celli]) = cellLevel_[celli]+1;
     }
 
@@ -3326,6 +3347,36 @@ Foam::labelListList Foam::hexRef4::setRefinement
         splitCells.write();
     }
 
+    //JPA: Make empty faces adn the edges on the empty faces the only faces and edges
+    //     visible for partitioning
+    boolList isDivisibleFace (mesh_.nFaces(), false);
+    boolList isDivisibleEdge (mesh_.nEdges(), false);
+
+    for (label faceI = mesh_.nInternalFaces();  faceI < mesh_.nFaces(); faceI++)
+    {
+        const label & patchID = mesh_.boundaryMesh().whichPatch(faceI);
+
+        if (isA<emptyPolyPatch>(mesh_.boundaryMesh()[patchID]))
+        {
+            if (debug)
+            {
+                Pout << "Face: " << faceI <<
+                        " from PatchID " << patchID << " is divisible" << endl;
+            }
+
+            isDivisibleFace[faceI] = true;
+
+            //take the edges from splitable faces;
+            const labelList& fEdges = mesh_.faceEdges(faceI);
+
+            forAll(fEdges, i)
+            {
+                label edgeJ = fEdges[i];
+
+                isDivisibleEdge[edgeJ] = true;
+            }
+        }
+    }
 
 
     // Split edges
@@ -3362,6 +3413,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
                 (
                     pointLevel_[e[0]] <= cellLevel_[celli]
                  && pointLevel_[e[1]] <= cellLevel_[celli]
+                 && isDivisibleEdge[edgeI]          //JPA
                 )
                 {
                     edgeMidPoint[edgeI] = 12345;    // mark need for splitting
@@ -3572,12 +3624,17 @@ Foam::labelListList Foam::hexRef4::setRefinement
     {
         // Phase 1: determine mid points and sync. See comment for edgeMids
         // above
+
+        //JPA: This is just declaration of the pointfield, which
+        // stores the location of the boundary midpoints locations
+        // initialy with points equal to -\infty
         pointField bFaceMids
         (
             mesh_.nFaces()-mesh_.nInternalFaces(),
             point(-GREAT, -GREAT, -GREAT)
         );
 
+        //JPA: here we are calculating the locations of the boundary face centres.
         forAll(bFaceMids, i)
         {
             label facei = i+mesh_.nInternalFaces();
@@ -3587,6 +3644,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
                 bFaceMids[i] = mesh_.faceCentres()[facei];
             }
         }
+        //JPA: Sync across processors or coupled patches
         syncTools::syncBoundaryFacePositions
         (
             mesh_,
@@ -3594,9 +3652,11 @@ Foam::labelListList Foam::hexRef4::setRefinement
             maxEqOp<vector>()
         );
 
+        //JPA: Add a point in the middle of the visible faces
         forAll(faceMidPoint, facei)
         {
-            if (faceMidPoint[facei] >= 0)
+            if (faceMidPoint[facei] >= 0
+                && isDivisibleFace[facei])
             {
                 // Face marked to be split. Replace faceMidPoint with actual
                 // point label.
@@ -3641,6 +3701,23 @@ Foam::labelListList Foam::hexRef4::setRefinement
             << " faces to split to faceSet " << splitFaces.objectPath() << endl;
 
         splitFaces.write();
+
+        //JPA to OBJ
+        OFstream str(mesh_.time().path()/"faceMidPoint.obj");
+
+        forAll(faceMidPoint, facei)
+        {
+            if (faceMidPoint[facei] >= 0)
+            {
+                const face& f = mesh_.faces()[facei];
+                meshTools::writeOBJ(str, f.centre(mesh_.points()));
+            }
+        }
+
+        Pout<< "hexRef4::setRefinement :"
+            << " Dumping face centres to split to file " << str.name() << endl;
+
+
     }
 
 

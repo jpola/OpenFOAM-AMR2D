@@ -8,7 +8,123 @@ FoamFile
 }
 solvers
 {
+	p_rgh
+	{
+		nPostSweeps	1;
+		solver	GAMG;
+		smoother	GaussSeidel;
+		nFinalSweeps	0;
+		nPreSweeps	0;
+		nCellsInCoarsestLevel	100;
+		cacheAgglomeration	true;
+		maxIter	100;
+		tolerance	1.0E-6;
+		agglomerator	faceAreaPair;
+		relTol	1.0E-4;
+		mergeLevels	1;
+	}
+	U
+	{
+		tolerance	1.0E-6;
+		preconditioner	DILU;
+		solver	PBiCG;
+		relTol	1.0E-4;
+		maxIter	100;
+	}
+	"alpha.*"
+	{
+		icAlpha	0.0;
+		cAlpha	1.0;
+		alphaOuterCorrectors	false;
+		nAlphaSubCycles	2;
+		MULESCorr	false;
+		nLimiterIter	10;
+		alphaApplyPrevCorr	false;
+		nAlphaCorr	2;
+		nSweeps	1;
+		tolerance	1.0E-8;
+		solver	smoothSolver;
+		smoother	GaussSeidel;
+		relTol	0.1;
+		maxIter	100;
+	}
+	pcorr
+	{
+		nPostSweeps	1;
+		solver	GAMG;
+		smoother	GaussSeidel;
+		nFinalSweeps	0;
+		nPreSweeps	0;
+		nCellsInCoarsestLevel	100;
+		cacheAgglomeration	true;
+		maxIter	100;
+		tolerance	1.0E-6;
+		agglomerator	faceAreaPair;
+		relTol	1.0E-4;
+		mergeLevels	1;
+	}
+	p_rghFinal
+	{
+		nPostSweeps	1;
+		solver	GAMG;
+		smoother	GaussSeidel;
+		nFinalSweeps	0;
+		nPreSweeps	0;
+		nCellsInCoarsestLevel	100;
+		cacheAgglomeration	true;
+		maxIter	100;
+		tolerance	1.0E-6;
+		agglomerator	faceAreaPair;
+		relTol	1.0E-4;
+		mergeLevels	1;
+	}
+	UFinal
+	{
+		tolerance	1.0E-6;
+		preconditioner	DILU;
+		solver	PBiCG;
+		relTol	1.0E-4;
+		maxIter	100;
+	}
+	pcorrFinal
+	{
+		nPostSweeps	1;
+		solver	GAMG;
+		smoother	GaussSeidel;
+		nFinalSweeps	0;
+		nPreSweeps	0;
+		nCellsInCoarsestLevel	100;
+		cacheAgglomeration	true;
+		maxIter	100;
+		tolerance	1.0E-6;
+		agglomerator	faceAreaPair;
+		relTol	1.0E-4;
+		mergeLevels	1;
+	}
+}
+PIMPLE
+{
+	nNonOrthogonalCorrectors	1;
+	nCorrectors	1;
+	nOuterCorrectors	1;
+	pRefCell	0;
+	pRefValue	0.0;
+	momentumPredictor	true;
+	correctPhi	false;
+	moveMeshOuterCorrectors	false;
+	residualControl
+	{
+	}
+}
+relaxationFactors
+{
+	U	1.0;
+	p_rgh	1.0;
+	pcorr	1.0;
 }
 potentialFlow
 {
+	nNonOrthogonalCorrectors	10;
+	pRefCell	0;
+	pRefValue	0.0;
 }

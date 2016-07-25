@@ -23,15 +23,16 @@ dynamicRefineFvMesh2DCoeffs
     maxCells 1000000;
 
     // volScalarField to base refinement on
-    field alpha.oil;
+    field alpha.water;
 
     // Which cells to un/refine: based on point values (simple averaging).
     // - refine pointCells of point value inbetween minLevel..maxLevel
     // - unrefine pointCells that are within nBufferLayers of points marked
     //   for refinement.
-    minLevel 0.001;
-    maxLevel 0.999;
-    nBufferLayers 1;
+    minLevel 0.23;
+    maxLevel 0.25;
+    nBufferLayers 0;
+    nBufferLayersR 0;
 	unrefineLevel 0;
 
     // Newly introduced patch points optionally get projected onto a surface
@@ -45,12 +46,8 @@ dynamicRefineFvMesh2DCoeffs
     // First is name of the flux to adapt, second is velocity that will
     // be interpolated and inner-producted with the face area vector.
     correctFluxes (
-		(phi U)
-		(rhoPhi U)
-		(nHatf U)
-        (rhoPhi U)
-        (alphaPhi U)
-        (ghf U)
+		(phi none)
+        (nHatf none)
 	);
 
 	// Write the refinement level as a volScalarField
