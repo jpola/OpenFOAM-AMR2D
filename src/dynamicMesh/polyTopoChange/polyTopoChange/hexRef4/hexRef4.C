@@ -3324,7 +3324,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
 //        );
 
         //JPA: Dunno if that is relevant here?
-        newPointLevel(cellMidPoint[celli]) = cellLevel_[celli]+1;
+        //newPointLevel(cellMidPoint[celli]) = cellLevel_[celli]+1;
     }
 
 
@@ -3345,6 +3345,19 @@ Foam::labelListList Foam::hexRef4::setRefinement
             << endl;
 
         splitCells.write();
+
+        //JPA splitCells to OBJ
+        OFstream str(mesh_.time().path()/"splitCells.obj");
+
+        forAll(cellMidPoint, celli)
+        {
+            if (cellMidPoint[celli] >= 0)
+            {
+                //const cell & c = mesh_.cells()[celli];
+                dumpCell(celli);
+                //meshTools::writeOBJ(str, c.centre(mesh_.points()));
+            }
+        }
     }
 
     //JPA: Make empty faces adn the edges on the empty faces the only faces and edges
@@ -3552,8 +3565,9 @@ Foam::labelListList Foam::hexRef4::setRefinement
 
             if
             (
-                newOwnLevel > faceAnchorLevel[facei]
-             || newNeiLevel > faceAnchorLevel[facei]
+                (newOwnLevel > faceAnchorLevel[facei]
+             || newNeiLevel > faceAnchorLevel[facei])
+                    && isDivisibleFace[facei]
             )
             {
                 faceMidPoint[facei] = 12345;    // mark to be split
@@ -3597,8 +3611,9 @@ Foam::labelListList Foam::hexRef4::setRefinement
 
                 if
                 (
-                    newOwnLevel > faceAnchorLevel[facei]
-                 || newNeiLevel[i] > faceAnchorLevel[facei]
+                    (newOwnLevel > faceAnchorLevel[facei]
+                 || newNeiLevel[i] > faceAnchorLevel[facei])
+                        && isDivisibleFace[facei]
                 )
                 {
                     faceMidPoint[facei] = 12345;    // mark to be split
@@ -3702,7 +3717,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
 
         splitFaces.write();
 
-        //JPA to OBJ
+        //JPA faceCentres to split to OBJ
         OFstream str(mesh_.time().path()/"faceMidPoint.obj");
 
         forAll(faceMidPoint, facei)
