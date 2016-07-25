@@ -532,50 +532,124 @@ Foam::scalar Foam::hexRef4::getLevel0EdgeLength() const
 }
 
 
-// Check whether pointi is an anchor on celli.
-// If it is not check whether any other point on the face is an anchor cell.
+//// Check whether pointi is an anchor on celli.
+//// If it is not check whether any other point on the face is an anchor cell.
+//Foam::label Foam::hexRef4::getAnchorCell
+//(
+//    const labelListList& cellAnchorPoints,
+//    const labelListList& cellAddedCells,
+//    const label celli,
+//    const label facei,
+//    const label pointi
+//) const
+//{
+//    if (cellAnchorPoints[celli].size())
+//    {
+//        label index = findIndex(cellAnchorPoints[celli], pointi);
+
+//        if (index != -1)
+//        {
+//            return cellAddedCells[celli][index];
+//        }
+
+
+//        // pointi is not an anchor cell.
+//        // Maybe we are already a refined face so check all the face
+//        // vertices.
+//        const face& f = mesh_.faces()[facei];
+
+//        forAll(f, fp)
+//        {
+//            label index = findIndex(cellAnchorPoints[celli], f[fp]);
+
+//            if (index != -1)
+//            {
+//                return cellAddedCells[celli][index];
+//            }
+//        }
+
+//        // Problem.
+//        dumpCell(celli);
+//        Perr<< "cell:" << celli << " anchorPoints:" << cellAnchorPoints[celli]
+//            << endl;
+
+//        FatalErrorInFunction
+//            << "Could not find point " << pointi
+//            << " in the anchorPoints for cell " << celli << endl
+//            << "Does your original mesh obey the 2:1 constraint and"
+//            << " did you use consistentRefinement to make your cells to refine"
+//            << " obey this constraint as well?"
+//            << abort(FatalError);
+
+//        return -1;
+//    }
+//    else
+//    {
+//        return celli;
+//    }
+//}
+
+/// Check whether pointi is an anchor on celli.
+/// If it is not check whether any other point on the face is an anchor cell.
+//Implementation from the paper
 Foam::label Foam::hexRef4::getAnchorCell
 (
-    const labelListList& cellAnchorPoints,
-    const labelListList& cellAddedCells,
-    const label celli,
-    const label facei,
-    const label pointi
-) const
+        const labelListList& cellAnchorPoints,
+        const labelListList& cellAddedCells,
+        const label cellI,
+        const label faceI,
+        const label pointI
+        ) const
 {
-    if (cellAnchorPoints[celli].size())
+    if (cellAnchorPoints[cellI].size())
     {
-        label index = findIndex(cellAnchorPoints[celli], pointi);
-
+        label index = findIndex(cellAnchorPoints
+                                [cellI], pointI);
         if (index != -1)
         {
-            return cellAddedCells[celli][index];
+            if (index >= 4)     //AB....
+            {
+                if (index == 4)
+                {
+                    index = 8;
+                }
+                index = 8 - index;
+            }                   //AB
+
+            return cellAddedCells[cellI][ index];
         }
 
-
-        // pointi is not an anchor cell.
-        // Maybe we are already a refined face so check all the face
-        // vertices.
-        const face& f = mesh_.faces()[facei];
-
+        // pointI is not an anchor cell.
+        // Maybe we are already a refined face so
+        // check all the face vertices.
+        const face& f = mesh_.faces()[faceI];
         forAll(f, fp)
         {
-            label index = findIndex(cellAnchorPoints[celli], f[fp]);
-
+            label index = findIndex(cellAnchorPoints
+                                    [cellI], f[fp]);
             if (index != -1)
             {
-                return cellAddedCells[celli][index];
+                if (index >= 4)     //AB....
+                {
+                    if (index == 4)
+                    {
+                        index = 8;
+                    }
+                    index = 8 - index;
+                }                   //AB
+
+                return cellAddedCells[cellI][index];
             }
         }
 
         // Problem.
-        dumpCell(celli);
-        Perr<< "cell:" << celli << " anchorPoints:" << cellAnchorPoints[celli]
+        dumpCell(cellI);
+        Perr<< "cell:" << cellI << " anchorPoints:" << cellAnchorPoints[cellI]
             << endl;
 
         FatalErrorInFunction
-            << "Could not find point " << pointi
-            << " in the anchorPoints for cell " << celli << endl
+            << "Could not find point " << pointI
+            << " in the anchorPoints for cell " << cellI << endl
             << "Does your original mesh obey the 2:1 constraint and"
             << " did you use consistentRefinement to make your cells to refine"
             << " obey this constraint as well?"
@@ -585,7 +659,7 @@ Foam::label Foam::hexRef4::getAnchorCell
     }
     else
     {
-        return celli;
+        return cellI;
     }
 }
 
@@ -3324,7 +3398,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
 //        );
 
         //JPA: Dunno if that is relevant here?
-        //newPointLevel(cellMidPoint[celli]) = cellLevel_[celli]+1;
+        newPointLevel(cellMidPoint[celli]) = cellLevel_[celli]+1;
     }
 
 
@@ -3635,7 +3709,6 @@ Foam::labelListList Foam::hexRef4::setRefinement
 
     // Introduce face points
     // ~~~~~~~~~~~~~~~~~~~~~
-
     {
         // Phase 1: determine mid points and sync. See comment for edgeMids
         // above
@@ -3760,6 +3833,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
     // with the hex and will have the same or lower refinement level.
 
     // Per cell the 8 corner points.
+    // JPA: This is a double list. [nCells()][8]. Here is just declaration
     labelListList cellAnchorPoints(mesh_.nCells());
 
     {
@@ -3773,7 +3847,28 @@ Foam::labelListList Foam::hexRef4::setRefinement
             }
         }
 
-        forAll(pointLevel_, pointi)
+/**
+  JPA:
+The nAnchors is defined in the
+dynamicRefineFvMesh.C file. If the value of nAnchors for the cell is not 8,
+then the cell can not be refined. To find the value of nAnchors for a given cell, a
+loop is taken over all the points of the cell and if the pointLevel is less than or
+equal to cellLevel for a point, then this point is added to the nAnchors. In the
+dynamicRefineFvMesh file, the cellLevel and pointLevel are defined
+such that each cell has a cellLevel starting with 0 for the original cell and if the
+cell is refined once then this number becomes 1 for each new cell and so on. The
+value of pointLevel is similarly defined.
+*/
+        //According to definition from above we are checking cellLevel and pointLevel
+        //for each cells to be refined/
+
+
+        /**
+         * JPA: It is different than the implementation from the paper
+         * We have to check if the face is divisible
+         */
+
+        /*forAll(pointLevel_, pointi)
         {
             const labelList& pCells = mesh_.pointCells(pointi);
 
@@ -3784,7 +3879,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
                 if
                 (
                     cellMidPoint[celli] >= 0
-                 && pointLevel_[pointi] <= cellLevel_[celli]
+                 && pointLevel_[pointi] <= cellLevel_[celli] //HERE!
                 )
                 {
                     if (nAnchorPoints[celli] == 8)
@@ -3800,6 +3895,50 @@ Foam::labelListList Foam::hexRef4::setRefinement
                     }
 
                     cellAnchorPoints[celli][nAnchorPoints[celli]++] = pointi;
+                }
+            }
+        }
+        */
+
+        //JPA: Paper implementation:
+        forAll(cellMidPoint, cellI)
+        {
+            //get cell from the marked cells
+            const cell& cFaces = mesh_.cells()[cellI];
+
+            //loop over the faces
+            forAll (cFaces, i)
+            {
+                label faceI = cFaces[i];
+
+                //get the face from the mesh
+                const face& f = mesh_.faces()[faceI];
+
+                //loop over the points of face
+                forAll(f, fp)
+                {
+                    label pointI = f[fp];
+
+                    //check for the anchor point and if the face is divisible
+                    if (isDivisibleFace[faceI]
+                            && cellMidPoint[cellI] >=0
+                            && pointLevel_[pointI] <= cellLevel_[cellI] //definition of the anchor point here
+                        )
+                    {
+                        if (nAnchorPoints[cellI] == 8)
+                        {
+                            dumpCell(cellI);
+                            FatalErrorInFunction
+                                << "cell " << cellI
+                                << " of level " << cellLevel_[cellI]
+                                << " uses more than 8 points of equal or"
+                                << " lower level" << nl
+                                << "Points so far:" << cellAnchorPoints[cellI]
+                                << abort(FatalError);
+                        }
+
+                        cellAnchorPoints[cellI][nAnchorPoints[cellI]++] = pointI;
+                    }
                 }
             }
         }
@@ -3849,7 +3988,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
         if (cAnchors.size() == 8)
         {
             labelList& cAdded = cellAddedCells[celli];
-            cAdded.setSize(8);
+            cAdded.setSize(4);
 
             // Original cell at 0
             cAdded[0] = celli;
@@ -3858,7 +3997,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
             newCellLevel[celli] = cellLevel_[celli]+1;
 
 
-            for (label i = 1; i < 8; i++)
+            for (label i = 1; i < 4; i++)
             {
                 cAdded[i] = meshMod.setAction
                 (
@@ -3917,6 +4056,16 @@ Foam::labelListList Foam::hexRef4::setRefinement
             }
         }
 
+//        forAll (affectedFace, af)
+//        {
+//            if (affectedFace[af])
+//            {
+//                Pout << " affected face " << af << "\n";
+//            }
+
+//        }
+//        Pout << "\n Affected faces size " <<  affectedFace.size() << endl;
+
         forAll(edgeMidPoint, edgeI)
         {
             if (edgeMidPoint[edgeI] >= 0)
@@ -3939,7 +4088,7 @@ Foam::labelListList Foam::hexRef4::setRefinement
     {
         Pout<< "hexRef4::setRefinement : Splitting faces" << endl;
     }
-
+/* JPA original code
     forAll(faceMidPoint, facei)
     {
         if (faceMidPoint[facei] >= 0 && affectedFace.get(facei))
@@ -4066,6 +4215,205 @@ Foam::labelListList Foam::hexRef4::setRefinement
             affectedFace.unset(facei);
         }
     }
+*/
+    //JPA: New code for 2D
+    forAll(faceMidPoint, faceI)
+    {
+        if (faceMidPoint[faceI] >= 0 && affectedFace.get(faceI))
+        {
+            // Face needs to be split and hasn’t yet been
+            //done in some way (affectedFace - is impossible
+            //since this is first change but just for
+            //completeness)
+            const face& f = mesh_.faces()[faceI];
+
+            // Has original faceI been used (three faces
+            //added, original gets modified)
+
+            bool modifiedFace = false;
+            label anchorLevel = faceAnchorLevel[faceI];
+
+            //faces on empty patches are divided into four
+            if (isDivisibleFace[faceI])
+            {
+                face newFace(4);
+
+                forAll(f, fp)
+                {
+                    label pointI = f[fp];
+
+                    if (pointLevel_[pointI] <= anchorLevel)
+                    {
+                        // point is anchor. Start collecting face.
+                        DynamicList<label> faceVerts(4);
+
+                        faceVerts.append(pointI);
+
+                        // Walk forward to mid point.
+                        // - if next is +2 midpoint is +1
+                        // - if next is +1 it is midpoint
+                        // - if next is +0 there has to be edgeMidPoint
+
+                        walkFaceToMid
+                            (
+                                edgeMidPoint,
+                                anchorLevel,
+                                faceI,
+                                fp,
+                                faceVerts
+                            );
+
+                        faceVerts.append(faceMidPoint[faceI]);
+
+                        walkFaceFromMid
+                            (
+                                edgeMidPoint,
+                                anchorLevel,
+                                faceI,
+                                fp,
+                                faceVerts
+                            );
+
+                        // Convert dynamiclist to face.
+                        newFace.transfer(faceVerts);
+
+                        // Get new owner / neighbour
+
+                        label own, nei;
+
+                        getFaceNeighbours
+                                (
+                                    cellAnchorPoints,
+                                    cellAddedCells,
+                                    faceI,
+                                    pointI,
+                                    own,
+                                    nei
+                                );
+
+                        if (debug)
+                        {
+                            if (mesh_.isInternalFace(faceI))
+                            {
+                                label oldOwn = mesh_.faceOwner()[faceI];
+                                label oldNei = mesh_.faceNeighbour()[faceI];
+
+                                checkInternalOrientation
+                                        (
+                                            meshMod,
+                                            oldOwn,
+                                            faceI,
+                                            mesh_.cellCentres()[oldOwn],
+                                            mesh_.cellCentres()[oldNei],
+                                            newFace
+                                        );
+
+                            }
+                            else
+                            {
+                                label oldOwn = mesh_.faceOwner()[faceI];
+
+                                checkBoundaryOrientation
+                                        (
+                                            meshMod,
+                                            oldOwn,
+                                            faceI,
+                                            mesh_.cellCentres()[oldOwn],
+                                            mesh_.faceCentres()[faceI],
+                                            newFace
+                                        );
+                            }
+                        }
+
+                        if (!modifiedFace)
+                        {
+                            modifiedFace = true;
+
+                            modFace (meshMod, faceI, newFace, own, nei);
+                        }
+                        else
+                        {
+                            addFace(meshMod, faceI, newFace, own,nei);
+                        }
+                    }
+                }
+            }
+            //Faces which do not have faceMidpoint (connection betwen 2 empty patches)
+            else
+            {
+                face newFace(2);
+
+                forAll(f, fp)
+                {
+                    label pointI = f[fp];
+
+                    label nextpointI = f[f.fcIndex(fp)];
+
+                    label edgeI = meshTools::findEdge(mesh_, pointI, nextpointI);
+
+                    if (edgeMidPoint[edgeI] >= 0)
+                    {
+                        DynamicList<label> faceVerts(4);
+
+                        label pointJ = f[f.rcIndex(fp)];
+
+                        faceVerts.append(pointI);
+
+                        walkFaceToMid
+                                (
+                                    edgeMidPoint,
+                                    anchorLevel,
+                                    faceI,
+                                    fp,
+                                    faceVerts
+                                );
+
+                        walkFaceFromMid
+                                (
+                                    edgeMidPoint,
+                                    anchorLevel,
+                                    faceI,
+                                    f.rcIndex(fp),
+                                    faceVerts
+                                );
+
+                        faceVerts.append(pointJ);
+
+                        newFace.transfer(faceVerts);
+
+                        label own, nei;
+
+                        getFaceNeighbours
+                                (
+                                    cellAnchorPoints,
+                                    cellAddedCells,
+                                    faceI,
+                                    pointI,
+                                    own,
+                                    nei
+                                );
+                        if (debug)
+                        {
+
+                        }
+
+                        if (!modifiedFace)
+                        {
+                            modifiedFace = true;
+
+                            modFace(meshMod, faceI, newFace, own, nei);
+                        }
+                        else
+                        {
+                            addFace(meshMod, faceI, newFace, own, nei);
+                        }
+                    }
+                }
+
+            } //else // //Faces which do not have faceMidpoint (connection betwen 2 empty patches)
+
+        } //if (faceMidPoint[faceI] >= 0 && affectedFace.get(faceI))
+    }  // forAll(faceMidPoint, faceI)
 
 
     // 2. faces that do not get split but use edges that get split
